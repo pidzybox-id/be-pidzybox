@@ -4,25 +4,23 @@ import express from 'express'
 import { uploadFile,uploadMultipleFiles } from './file-upload-util.js'
 import { downloadFile } from './download-print.js'
 import { db } from './db.js';
-
+import cors from 'cors';
 
 const app = express();
 app.use(express.json());
+app.use(cors())
 
-
-
-const port = 3000
+const port = process.env.PORT || 8080;
 const multerParse = multer({ 
     dest: './uploads/'
 })
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
-
 app.post('/upload',
-    multerParse.array('attachment', 3), 
+    multerParse.array('attachment', 6),
     async (req, res) => {
-        const attachments = req.files; 
+        const attachments = req.files;
         const {order_id}  = req.body;
         if (!attachments || attachments.length === 0) {
             return res.status(400).json({ error: 'No attachments uploaded' });
@@ -160,79 +158,109 @@ app.post('/start', async (req, res) => {
     })
 })
 
-
-
 app.post('/payment', async (req, res) => {
-    const {order_id} = req.body;
-    if (!order_id ) {
-        return res.status(400).json({ error: 'Wrong Request' })
+    const { order_id } = req.body; // Ini harusnya angka, misal: 8
+
+    // Validasi input
+    if (!order_id) {
+        return res.status(400).json({ error: 'Wrong Request: No Order ID' })
     }
+
+    // --- TRIK AGAR MIDTRANS TIDAK 406 ---
+    // Kita buat ID palsu khusus untuk Midtrans
+    // Contoh: "8-171555999" (Unik setiap milidetik)
+    const midtransUniqueId = `${order_id}-${Date.now()}`;
+
+    // Config Midtrans
     const SERVER_KEY = process.env.MT_SERVER_KEY;
-    const NOTIFICATION_URL = process.env.MT_NOTIFICATION_URL
     const API_URL = process.env.MT_API_URL;
     const authString = `${SERVER_KEY}:`;
     const base64Auth = Buffer.from(authString).toString('base64');
-    const authorizationHeader = `Basic ${base64Auth}`;
 
-    if (!SERVER_KEY) {
-        console.error("Error: MIDTRANS_SERVER_KEY is not set. Please check your .env file.");
-        process.exit(1);
-    }
-
-    // console.log("Authorization Header:", authorizationHeader);
     const payload = {
         payment_type: "qris",
         transaction_details: {
-            order_id: order_id.toString(),
+            // KIRIM ID YANG ADA BUNTUTNYA KE MIDTRANS
+            order_id: midtransUniqueId, 
             gross_amount: 10
         }
     };
 
-    const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': authorizationHeader,
-            'X-Override-Notification': NOTIFICATION_URL
-        },
-        body: JSON.stringify(payload)
-    });
-    const data = await response.json();
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Basic ${base64Auth}`
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
 
-    if (response.ok) {
+        // Cek log ini di terminal backend untuk memastikan sukses
+        console.log("Midtrans Response:", data); 
+
         return res.status(201).json({ 
             message: 'Payment QR Generated',
             data: data,
         })
-    } else {
-        console.error("Midtrans API Error:", data);
-        return res.status(500).json({ error: 'Midtrans API Error', details: data })
+    } catch (error) {
+        console.error("Midtrans Error:", error);
+        return res.status(500).json({ error: 'Internal Server Error' });
     }
 })
 
-app.post('/midtrans-notification', async (req, res) => {
-    console.log('Midtrans Notification Received:');
-    const notification = req.body;
-    console.log('Midtrans JOS Received:');
-    console.log(notification);
-
-    const {order_id, transaction_status, status_code, signature_key, } = notification;
-
-    if (!order_id || !transaction_status || !status_code || !signature_key) {
-        return res.status(400).json({ error: 'Invalid notification payload' })
-    }
-
-    if (transaction_status === 'settlement' && status_code === '200') {
-        const updateData = await db.query(
-            'UPDATE orders SET payment_status = true WHERE id = $1 RETURNING *',
+// Endpoint untuk FE mengecek apakah user sudah bayar
+app.get('/order/status/:order_id', async (req, res) => {
+    const { order_id } = req.params;
+    try {
+        const result = await db.query(
+            'SELECT payment_status FROM orders WHERE id = $1',
             [order_id]
         );
-        console.log('Order Updated:', updateData.rows[0]);
-        return res.status(200).json({
-             message: 'Payment confirmed',
-             order_id: order_id, 
-             data: updateData.rows[0] })
-    } 
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        return res.status(200).json({ 
+            payment_status: result.rows[0].payment_status 
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Database error' });
+    }
 });
 
+app.post('/midtrans-notification', async (req, res) => {
+    const notification = req.body;
+    const { order_id, transaction_status, status_code } = notification;
+
+    console.log(`Notif masuk untuk Order: ${order_id} Status: ${transaction_status}`);
+
+    // --- BERSIHKAN ID DARI BUNTUT TIMESTAMP ---
+    // order_id dari midtrans: "8-171555999"
+    // Kita ambil angka depannya saja: "8"
+    const realOrderId = order_id.split('-')[0]; 
+
+    if (transaction_status === 'settlement' && status_code === '200') {
+        try {
+            // Update Database pakai ID ASLI (Angka)
+            const updateData = await db.query(
+                'UPDATE orders SET payment_status = true WHERE id = $1 RETURNING *',
+                [realOrderId] 
+            );
+            console.log('Payment Confirmed for Order:', realOrderId);
+            return res.status(200).json({ status: 'OK' });
+        } catch (dbError) {
+            console.error("Database Error:", dbError);
+            // Tetap return 200 ke Midtrans agar dia tidak kirim notif ulang terus
+            return res.status(200).json({ status: 'OK' }); 
+        }
+    } else {
+        // Status lain (pending/expire) tetap return OK
+        return res.status(200).json({ status: 'OK' });
+    }
+});
