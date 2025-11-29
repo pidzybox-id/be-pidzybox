@@ -3,6 +3,7 @@ import multer from 'multer'
 import express from 'express'
 import { uploadFile,uploadMultipleFiles } from './file-upload-util.js'
 import { downloadFile } from './download-print.js'
+import { sendPhotoEmail } from './send-email.js'
 import { db } from './db.js';
 import cors from 'cors';
 
@@ -76,6 +77,19 @@ app.get('/get-photos/:order_id', async (req, res) => {
     });
 });
 
+app.get('/get-final-photo/:order_id', async (req, res) => {
+    const { order_id } = req.params;
+    const data = await db.query(
+        'select * from orders where id = $1',
+        [order_id]
+    );
+    const photoUrl = data.rows[0]?.final_photo;
+    return res.status(200).json({ 
+        message: `Photos for Order ID: ${order_id}`, 
+        data: photoUrl
+    });
+});
+
 app.post('/upload-photos-final/:order_id',multerParse.fields([{
     name: 'attachment',
     }]), async (req, res) => {
@@ -102,6 +116,48 @@ app.post('/',async (req, res) => {
     console.log('JOSS');
     res.send('Hello from POST!')})
 
+app.post('/email/:order_id', async (req, res) => { 
+    const {order_id}  = req.params;
+    const {email}  = req.body;
+    if (!email) {
+        return res.status(400).json({ error: 'No Email provided' })
+    }
+    const updateQuery = `
+        UPDATE orders 
+        SET email = $2
+        WHERE id = $1
+        RETURNING *;
+    `;
+    const result = await db.query(
+        updateQuery,
+        [order_id, email])
+        
+    
+    const photo = await db.query(
+        'select * from orders where id = $1',
+        [order_id]
+    );
+    const finalPhotoUrl = photo.rows[0].final_photo;
+    console.log('Final Photo URL:', finalPhotoUrl);
+    
+    const emailResponse = await sendPhotoEmail(email, finalPhotoUrl);
+
+    const UpdateEmailStatusQuery = `
+        UPDATE orders 
+        SET send_email_status = $2
+        WHERE id = $1
+        RETURNING *;
+    `;
+    const emailStatusResult = await db.query(
+        UpdateEmailStatusQuery,
+        [order_id, emailResponse])
+    
+    return res.status(201).json({ message: `Email sent to ${email}`, 
+        data: emailStatusResult.rows[0]})
+})
+
+
+
 
 app.post('/print/:order_id', async (req, res) => {
     const {order_id}  = req.params;
@@ -116,6 +172,18 @@ app.post('/print/:order_id', async (req, res) => {
     console.log('Print URL:', url);
 
     const PrintResponse = await downloadFile(url)
+
+    const updatePrintStatusQuery = `
+        UPDATE orders 
+        SET print_status = $2
+        WHERE id = $1
+        RETURNING *;
+    `;
+    const printStatusResult = await db.query(
+        updatePrintStatusQuery,
+        [order_id, PrintResponse]
+    );
+
     if (PrintResponse) {
         return res.status(201).json({ message: 'File Printed'})
     } else {
@@ -124,24 +192,20 @@ app.post('/print/:order_id', async (req, res) => {
     })
 
 app.post('/template', async (req, res) => {
-    const {order_id, template_type, template_photos}  = req.body;
-    if (!template_type) {
-        return res.status(400).json({ error: 'Wrong Request' })
-    } 
-    if (!template_photos) {
+    const {order_id, template_id}  = req.body;
+    if (!template_id) {
         return res.status(400).json({ error: 'Wrong Request' })
     } 
     const updateQuery = `
         UPDATE orders 
-        SET template_type = $2, 
-        template_photos = $3
+        SET template_id = $2 
         WHERE id = $1
         RETURNING *;
     `;
     
     const result = await db.query(
         updateQuery,
-        [order_id, template_type, template_photos]
+        [order_id, template_id]
     );
     return res.status(201).json({ message: `Template updated for Order ID: ${order_id}`, 
             data: result.rows[0]})

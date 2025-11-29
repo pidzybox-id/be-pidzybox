@@ -9,7 +9,7 @@ export const uploadFile = async (file) => {
     `https://sg.storage.bunnycdn.com/dev-pidzybbox/${UniqueFileName}`, 
     fileStream, {
         headers:{
-            AccessKey: '5b54722a-e4f7-4140-b3c9416495c7-13de-46a2',
+            AccessKey: process.env.BUNNYCDN_API_KEY,
         }
     }
   );
