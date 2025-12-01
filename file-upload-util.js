@@ -1,42 +1,57 @@
-import fs from 'fs';
-import axios from 'axios';
+import fs from "fs";
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const uploadFile = async (file) => {
   const fileStream = fs.createReadStream(file.path);
   const UniqueFileName = `${Date.now()}-${file.filename}-${file.originalname}`;
 
-  const response = await axios.put(
-    `https://sg.storage.bunnycdn.com/dev-pidzybbox/${UniqueFileName}`, 
-    fileStream, {
-        headers:{
-            AccessKey: process.env.BUNNYCDN_API_KEY,
-        }
+  try {
+    const res = await axios.put(
+      `https://sg.storage.bunnycdn.com/dev-pidzybbox/${UniqueFileName}`,
+      fileStream,
+      {
+        headers: {
+          AccessKey: process.env.BUNNYCDN_API_KEY,
+          "Content-Type": "application/octet-stream",
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      }
+    );
+
+    // Success
+    if (res.status === 201 || res.status === 200) {
+      return `https://dev-pidzybbox.b-cdn.net/${UniqueFileName}`;
     }
-  );
-  if (response.status === 201 || response.status === 200) {
-    return `https://dev-pidzybbox.b-cdn.net/${UniqueFileName}`;
-  } else {
-    console.error(`BunnyCDN upload failed with status ${response.status}:`, response.data);
-    return false; // Indicates failure for this specific file
+
+    console.error(
+      `BunnyCDN upload returned unexpected status ${res.status}:`,
+      res.data
+    );
+    return false;
+
+  } catch (err) {
+    console.error(
+      "Upload failed:",
+      err.response?.status,
+      err.response?.data || err.message
+    );
+    return false;
   }
-}
+};
 
 export const uploadMultipleFiles = async (files) => {
-    // Use Promise.all to run all uploads concurrently for speed
-    const uploadPromises = files.map(file => uploadFile(file));
+  const uploadPromises = files.map((file) => uploadFile(file));
+  const results = await Promise.all(uploadPromises);
 
-    // Wait for all promises to settle (resolve or reject)
-    const results = await Promise.all(uploadPromises);
+  const successfulUrls = results.filter((url) => url);
 
-    // Filter out any failed uploads (where uploadFile returned false)
-    const successfulUrls = results.filter(url => url);
+  if (successfulUrls.length !== files.length) {
+    console.warn(`${files.length - successfulUrls.length} file(s) failed to upload.`);
+  }
 
-    // Check if any files failed
-    if (successfulUrls.length !== files.length) {
-        // You might want to log which ones failed here
-        console.warn(`${files.length - successfulUrls.length} file(s) failed to upload.`);
-    }
-
-    // Return the array of successfully uploaded URLs
-    return successfulUrls;
-}
+  return successfulUrls;
+};

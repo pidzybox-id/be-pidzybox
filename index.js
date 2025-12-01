@@ -10,6 +10,10 @@ import cors from 'cors';
 const app = express();
 app.use(express.json());
 app.use(cors())
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
 
 const port = process.env.PORT || 8080;
 const multerParse = multer({ 
@@ -19,7 +23,7 @@ const multerParse = multer({
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
 app.post('/upload',
-    multerParse.array('attachment', 6),
+    multerParse.array('attachment'),
     async (req, res) => {
         const attachments = req.files;
         const {order_id}  = req.body;
@@ -51,7 +55,7 @@ app.post('/upload',
                 [order_id, urls[i-1], i] 
             );
         }
-        const data = db.query(
+        const data = await db.query(
             'select * from photos where order_id = $1',
             [order_id]
         );
@@ -211,6 +215,59 @@ app.post('/template', async (req, res) => {
             data: result.rows[0]})
 
 })
+
+app.get('/templates', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM templates ORDER BY id ASC');
+        return res.status(200).json({ 
+            message: "Template list",
+            data: result.rows
+        });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Server error" });
+    }
+});
+
+app.get('/order/details/:order_id', async (req, res) => {
+    const { order_id } = req.params;
+    
+    try {
+        // PERBAIKAN: Tambahkan ::integer atau ::text agar tipe datanya cocok
+        // Kita ubah o.template_id (text) menjadi integer agar bisa dibandingkan dengan t.id (integer)
+        
+        const query = `
+            SELECT t.template_photos, t.template_type
+            FROM orders o
+            JOIN templates t ON CAST(o.template_id AS INTEGER) = t.id
+            WHERE o.id = $1
+        `;
+        
+        // OPSI LAIN (Jika cara di atas error karena ada data kosong):
+        // Gunakan: JOIN templates t ON o.template_id = CAST(t.id AS TEXT)
+
+        const result = await db.query(query, [order_id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Order or Template not found' });
+        }
+
+        const requiredAmount = parseInt(result.rows[0].template_photos);
+
+        return res.status(200).json({ 
+            message: "Order details fetched",
+            data: {
+                required_photos: requiredAmount,
+                template_type: result.rows[0].template_type
+            }
+        });
+
+    } catch (error) {
+        console.error("Database Error Detail:", error); // Log error lengkap
+        return res.status(500).json({ error: 'Database error' });
+    }
+});
+
 app.post('/start', async (req, res) => {
     const insertData = await db.query(
         'INSERT INTO orders (payment_status) VALUES (false) RETURNING *'
