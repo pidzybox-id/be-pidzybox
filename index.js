@@ -121,47 +121,46 @@ app.post('/',async (req, res) => {
     res.send('Hello from POST!')})
 
 app.post('/email/:order_id', async (req, res) => { 
-    const {order_id}  = req.params;
-    const {email}  = req.body;
-    if (!email) {
-        return res.status(400).json({ error: 'No Email provided' })
-    }
-    const updateQuery = `
-        UPDATE orders 
-        SET email = $2
-        WHERE id = $1
-        RETURNING *;
-    `;
-    const result = await db.query(
-        updateQuery,
-        [order_id, email])
+    const { order_id } = req.params;
+    const { email } = req.body;
+    const BASE_URL = process.env.NEXT_PUBLIC_BACK_END_URL || 'http://localhost:8080';
+
+    if (!email) return res.status(400).json({ error: 'No Email provided' });
+
+    try {
+        // 1. Update Email User
+        await db.query('UPDATE orders SET email = $2 WHERE id = $1', [order_id, email]);
+
+        // 2. Ambil Foto
+        const photoResult = await db.query('SELECT final_photo FROM orders WHERE id = $1', [order_id]);
         
-    
-    const photo = await db.query(
-        'select * from orders where id = $1',
-        [order_id]
-    );
-    const finalPhotoUrl = photo.rows[0].final_photo;
-    console.log('Final Photo URL:', finalPhotoUrl);
-    
-    const emailResponse = await sendPhotoEmail(email, finalPhotoUrl);
+        if (photoResult.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+        
+        const filename = photoResult.rows[0].final_photo;
+        if (!filename) return res.status(400).json({ error: 'Photo not ready' });
 
-    const UpdateEmailStatusQuery = `
-        UPDATE orders 
-        SET send_email_status = $2
-        WHERE id = $1
-        RETURNING *;
-    `;
-    const emailStatusResult = await db.query(
-        UpdateEmailStatusQuery,
-        [order_id, emailResponse])
-    
-    return res.status(201).json({ message: `Email sent to ${email}`, 
-        data: emailStatusResult.rows[0]})
-})
+        // 3. Buat URL Lengkap
+        // Jika filename cuma "file.png", gabung dengan base url
+        const cleanFilename = filename.startsWith('/') ? filename.substring(1) : filename;
+        const finalPhotoUrl = filename.startsWith('http') ? filename : `${BASE_URL}/${cleanFilename}`;
 
+        // 4. Kirim Email
+        const isSent = await sendPhotoEmail(email, finalPhotoUrl);
 
+        if (!isSent) {
+            return res.status(500).json({ error: 'Failed to send email via SMTP provider' });
+        }
 
+        // 5. Update Status
+        await db.query('UPDATE orders SET send_email_status = $2 WHERE id = $1', [order_id, true]);
+        
+        return res.status(200).json({ message: 'Email sent successfully' });
+
+    } catch (error) {
+        console.error("Backend Error:", error);
+        return res.status(500).json({ error: error.message });
+    }
+});
 
 app.post('/print/:order_id', async (req, res) => {
     const {order_id}  = req.params;
