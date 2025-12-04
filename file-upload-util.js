@@ -10,11 +10,11 @@ export const uploadFile = async (file) => {
 
   try {
     const res = await axios.put(
-      `https://sg.storage.bunnycdn.com/dev-pidzybbox/${UniqueFileName}`,
+      `https://sg.storage.bunnycdn.com/pidzybox/${UniqueFileName}`,
       fileStream,
       {
         headers: {
-          AccessKey: process.env.BUNNYCDN_API_KEY,
+          AccessKey: process.env.BUNNYCDN_ACCESS_KEY,
           "Content-Type": "application/octet-stream",
         },
         maxBodyLength: Infinity,
@@ -24,7 +24,7 @@ export const uploadFile = async (file) => {
 
     // Success
     if (res.status === 201 || res.status === 200) {
-      return `https://dev-pidzybbox.b-cdn.net/${UniqueFileName}`;
+      return `https://pidzybox.b-cdn.net/${UniqueFileName}`;
     }
 
     console.error(

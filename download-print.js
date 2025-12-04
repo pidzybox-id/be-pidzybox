@@ -5,12 +5,13 @@ import pkg from "pdf-to-printer";
 const { print, getPrinters, getDefaultPrinter } = pkg;
 
 export const downloadFile = async (file) => {
-  try {
-    const response = await axios.get(file, { responseType: "arraybuffer" });
-  } catch (error) {
-    console.error("Error downloading image:", error);
-    return false;
-  }
+  // try {
+  //   const response = await axios.get(file, { responseType: "arraybuffer" });
+  // } catch (error) {
+  //   console.error("Error downloading image:", error);
+  //   return false;
+  // }
+  const response = await axios.get(file, { responseType: "arraybuffer" });
 
   const tempImage = `./temp-${Date.now()}.jpeg`;
 
