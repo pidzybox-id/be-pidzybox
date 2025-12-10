@@ -27,6 +27,10 @@ app.post('/upload',
     async (req, res) => {
         const attachments = req.files;
         const {order_id}  = req.body;
+        console.log("🔥 MASUK MULTER");
+
+        console.log("FILES ->", req.files);
+        console.log("BODY  ->", req.body);
         if (!attachments || attachments.length === 0) {
             return res.status(400).json({ error: 'No attachments uploaded' });
         }
@@ -224,6 +228,37 @@ app.get('/templates', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
+        return res.status(500).json({ error: "Server error" });
+    }
+});
+
+app.get('/get-template/:order_id', async (req, res) => {
+    const { order_id } = req.params;
+
+    try {
+        const result = await db.query(`
+            SELECT 
+                t.template_url,
+                t.guide_template_url,
+                t.template_type,
+                t.template_photos,
+                t.id AS template_id
+            FROM orders o
+            JOIN templates t ON CAST(o.template_id AS INTEGER) = t.id
+            WHERE o.id = $1
+        `, [order_id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Template not found for this order" });
+        }
+
+        return res.status(200).json({
+            message: "Template loaded",
+            data: result.rows[0],
+        });
+
+    } catch (error) {
+        console.error("GET TEMPLATE ERROR:", error);
         return res.status(500).json({ error: "Server error" });
     }
 });
