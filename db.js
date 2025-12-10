@@ -45,13 +45,13 @@ const createTemplatesTable = async () => {
         id SERIAL PRIMARY KEY,
         template_type TEXT, 
         template_photos INTEGER, 
+        guide_template_url TEXT,
         template_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `
   await db.query(createTemplatesTableQuery);
 }
-
 
 // const initDB = async () => {
 //   try {
@@ -67,3 +67,25 @@ const createTemplatesTable = async () => {
 // };
 
 // initDB();
+
+// export const resetDatabase = async () => {
+//   try {
+//     await db.query(`
+//       DROP TABLE IF EXISTS photos CASCADE;
+//       DROP TABLE IF EXISTS orders CASCADE;
+//       DROP TABLE IF EXISTS templates CASCADE;
+//     `);
+
+//     console.log("Tables dropped. Recreating...");
+    
+//     await createPhotosTables();
+//     await createOrdersTable();
+//     await createTemplatesTable();
+
+//     console.log("All tables recreated successfully");
+//   } catch (err) {
+//     console.error("Error resetting DB:", err);
+//   }
+// };
+
+// resetDatabase();

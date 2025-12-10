@@ -1,6 +1,6 @@
-import pkg from 'pg';
+import pkg from "pg";
 const { Pool } = pkg;
-import 'dotenv/config';
+import "dotenv/config";
 
 // Konfigurasi Database
 export const db = new Pool({
@@ -14,18 +14,36 @@ export const db = new Pool({
 // Data Dummy yang sudah disesuaikan
 // Saya memetakan template_type secara manual berdasarkan asumsi umum
 const templatesData = [
-  { type: "1x3", photos: 3, url: "/images/frame-1-a.png" }, // 6 Photos Grid
-  { type: "1x4", photos: 4, url: "/images/frame-2-a.png" }, // 4 Photos Vertical
-  { type: "1x3", photos: 3, url: "/images/frame-1-b.png" }, // 2 Photos Strip
-  { type: "1x3", photos: 3, url: "/images/frame-1-a.png" }, // 6 Photos Grid (tapi count 3?)
-  { type: "1x4", photos: 4, url: "/images/frame-2-a.png" }, // 4 Photos Vertical (count 8)
-  { type: "1x3", photos: 3, url: "/images/frame-1-b.png" },
-  { type: "1x3", photos: 3, url: "/images/frame-1-a.png" },
-  { type: "1x3", photos: 3, url: "/images/frame-1-b.png" },
-  { type: "1x4", photos: 4, url: "/images/frame-2-a.png" },
-  { type: "1x4", photos: 4, url: "/images/frame-2-a.png" },
-  { type: "1x3", photos: 3, url: "/images/frame-1-b.png" },
-  { type: "1x3", photos: 3, url: "/images/frame-1-a.png" },
+  {
+    type: "2x1",
+    photos: 2,
+    guide_template_url: "/images/templates-photo/guideline/templateguideline1.png",
+    url_template: "/images/templates-photo/templates/Template1.png",
+  },
+  {
+    type: "2x1",
+    photos: 1,
+    guide_template_url: "/images/templates-photo/guideline/templateguideline2.png",
+    url_template: "/images/templates-photo/templates/Template1.png",
+  },
+  {
+    type: "2x1",
+    photos: 2,
+    guide_template_url: "/images/templates-photo/guideline/templateguideline3.png",
+    url_template: "/images/templates-photo/templates/Template3.png",
+  },
+  {
+    type: "2x1",
+    photos: 1,
+    guide_template_url: "/images/templates-photo/guideline/templateguideline4.png",
+    url_template: "/images/templates-photo/templates/Template3.png",
+  },
+  {
+    type: "2x2",
+    photos: 2,
+    guide_template_url: "/images/templates-photo/guideline/templateguideline5.png",
+    url_template: "/images/templates-photo/templates/Template2.png",
+  },
 ];
 
 const seedTemplates = async () => {
@@ -39,6 +57,7 @@ const seedTemplates = async () => {
             id SERIAL PRIMARY KEY,
             template_type TEXT,
             template_photos INTEGER,
+            guide_template_url TEXT,
             template_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -49,17 +68,16 @@ const seedTemplates = async () => {
     // 3. Loop data dan masukkan ke database
     for (const template of templatesData) {
       const query = `
-        INSERT INTO templates (template_type, template_photos, template_url)
-        VALUES ($1, $2, $3)
+        INSERT INTO templates (template_type, template_photos, guide_template_url, template_url)
+        VALUES ($1, $2, $3, $4)
       `;
-      
-      const values = [template.type, template.photos, template.url];
-      
+
+      const values = [template.type, template.photos, template.guide_template_url, template.url_template];
+
       await db.query(query, values);
     }
 
     console.log(`Berhasil memasukkan ${templatesData.length} data template!`);
-
   } catch (err) {
     console.error("Gagal melakukan seeding:", err);
   } finally {
