@@ -30,8 +30,18 @@ export const downloadFile = async (file) => {
     // Beri jeda sedikit untuk memastikan file selesai ditulis
     await new Promise((r) => setTimeout(r, 500)); 
     
+    // const printers = await getPrinters();
+    // const defaultPrinter = await getDefaultPrinter();
+
+    // console.log("Available printers:", printers);
+    // console.log("Default printer:", defaultPrinter);
+
     console.log("Sending to printer...");
-    await print(tempPDF);
+    await print(tempPDF, { 
+      printer: defaultPrinter,
+      paperSize: 'PR (4x6)'  // Atur ukuran kertas sesuai kebutuhan
+    }
+    );
     console.log("Print job sent!");
 
     return true; // Berhasil
