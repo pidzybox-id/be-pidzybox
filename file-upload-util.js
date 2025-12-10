@@ -14,7 +14,7 @@ export const uploadFile = async (file) => {
       fileStream,
       {
         headers: {
-          AccessKey: process.env.BUNNYCDN_API_KEY,
+          AccessKey: process.env.BUNNYCDN_ACCESS_KEY,
           "Content-Type": "application/octet-stream",
         },
         maxBodyLength: Infinity,
