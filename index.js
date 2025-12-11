@@ -4,7 +4,8 @@ import express from 'express'
 import { uploadFile,uploadMultipleFiles } from './file-upload-util.js'
 import { downloadFile } from './download-print.js'
 import { sendPhotoEmail } from './send-email.js'
-import { getAllTemplates, getTemplateById,createTemplate, deleteTemplate } from './templates.js';
+import { getAllTemplates, getTemplateById, createTemplate, deleteTemplate } from './templates.js';
+import { getAllStickers, getStickerById, createSticker, deleteSticker } from './stickers.js';
 import { db } from './db.js';
 import cors from 'cors';
 
@@ -118,83 +119,6 @@ app.post('/upload-photos-final/:order_id',multerParse.fields([{
             return res.status(500).json({ error: 'File upload failed' })
         }
 })
-
-app.get('/', (req, res) => res.send('Hello World!'))
-app.post('/',async (req, res) => {
-    console.log('JOSS');
-    res.send('Hello from POST!')})
-    
-app.get('/template-all', async (req, res) => {
-    const templates =  await getAllTemplates();
-    return  res.status(200).json({
-        message: 'All Templates fetched',
-        data: templates
-    });
-});
-
-app.get('/template/:id', async (req, res) => {
-    const { id } = req.params;
-    const template = await getTemplateById(id);
-    if (!template) {
-        return res.status(404).json({ error: 'Template not found' });
-    }
-    return res.status(200).json({
-        message: 'Template fetched',
-        data: template
-    });
-});
-
-app.post('/create-template', 
-    multerParse.fields([
-        {name: 'template', maxCount: 1},
-        {name: 'guide', maxCount: 1}]), 
-    async (req, res) => {
-        try {
-            const template = req.files?.template?.[0];
-            const guide = req.files?.guide?.[0];
-            if (!template || !guide) {
-                return res.status(400).json({ error: 'Missing template or guide file' });
-            }
-            const {template_theme, template_photos, name} = req.body;
-            console.log('Template Metadata:', {template_theme, template_photos, name});
-            if (!template_theme || !template_photos || !name) {
-                return res.status(400).json({ error: 'Missing template metadata' });
-            }
-            const template_url = await uploadFile(template);
-            const guide_template_url = await uploadFile(guide);
-    
-            const newTemplate = await createTemplate(
-                template_theme, 
-                template_photos,
-                guide_template_url,
-                template_url,
-                name
-            );
-            console.log("New Template Created:", newTemplate);
-            if (!newTemplate) {
-                return res.status(500).json({ error: 'Failed to create template' });
-            }
-            return res.status(201).json({ 
-                message: 'Template created successfully', 
-                data: newTemplate 
-            });
-        } catch (error) {
-            console.error("Upload Error:", error);
-            return res.status(500).json({ error: 'Internal Server Error' });
-        }
-});
-
-app.delete('/delete-template/:id', async (req, res) => {
-    const { id } = req.params;
-    const deletedTemplate = await deleteTemplate(id);
-    if (!deletedTemplate) {
-        return res.status(404).json({ error: 'Template not found' });
-    }
-    return res.status(200).json({ 
-        message: 'Template deleted successfully', 
-        data: deletedTemplate 
-    });
-});
 
 
 app.post('/email/:order_id', async (req, res) => { 
@@ -492,3 +416,154 @@ app.post('/midtrans-notification', async (req, res) => {
         return res.status(200).json({ status: 'OK' });
     }
 });
+
+app.get('/', (req, res) => res.send('Hello World!'))
+app.post('/',async (req, res) => {
+    console.log('JOSS');
+    res.send('Hello from POST!')})
+    
+// Template Endpoints
+
+app.get('/template-all', async (req, res) => {
+    const templates =  await getAllTemplates();
+    return  res.status(200).json({
+        message: 'All Templates fetched',
+        data: templates
+    });
+});
+
+app.get('/template/:id', async (req, res) => {
+    const { id } = req.params;
+    const template = await getTemplateById(id);
+    if (!template) {
+        return res.status(404).json({ error: 'Template not found' });
+    }
+    return res.status(200).json({
+        message: 'Template fetched',
+        data: template
+    });
+});
+
+app.post('/create-template', 
+    multerParse.fields([
+        {name: 'template', maxCount: 1},
+        {name: 'guide', maxCount: 1}]), 
+    async (req, res) => {
+        try {
+            const template = req.files?.template?.[0];
+            const guide = req.files?.guide?.[0];
+            if (!template || !guide) {
+                return res.status(400).json({ error: 'Missing template or guide file' });
+            }
+            const {template_theme, template_photos, name} = req.body;
+            console.log('Template Metadata:', {template_theme, template_photos, name});
+            if (!template_theme || !template_photos || !name) {
+                return res.status(400).json({ error: 'Missing template metadata' });
+            }
+            const template_url = await uploadFile(template);
+            const guide_template_url = await uploadFile(guide);
+    
+            const newTemplate = await createTemplate(
+                template_theme, 
+                template_photos,
+                guide_template_url,
+                template_url,
+                name
+            );
+            console.log("New Template Created:", newTemplate);
+            if (!newTemplate) {
+                return res.status(500).json({ error: 'Failed to create template' });
+            }
+            return res.status(201).json({ 
+                message: 'Template created successfully', 
+                data: newTemplate 
+            });
+        } catch (error) {
+            console.error("Upload Error:", error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+});
+
+app.delete('/delete-template/:id', async (req, res) => {
+    const { id } = req.params;
+    const deletedTemplate = await deleteTemplate(id);
+    if (!deletedTemplate) {
+        return res.status(404).json({ error: 'Template not found' });
+    }
+    return res.status(200).json({ 
+        message: 'Template deleted successfully', 
+        data: deletedTemplate 
+    });
+});
+
+// End of Template Endpoints
+
+
+// Sticker Endpoints 
+
+app.get('/sticker-all', async (req, res) => {
+    const stickers =  await getAllStickers();
+    return  res.status(200).json({
+        message: 'All Stickers fetched',
+        data: stickers
+    });
+});
+
+app.get('/sticker/:id', async (req, res) => {
+    const { id } = req.params;
+    const sticker = await getStickerById(id);
+    if (!sticker) {
+        return res.status(404).json({ error: 'Sticker not found' });
+    }
+    return res.status(200).json({
+        message: 'Sticker fetched',
+        data: sticker
+    });
+});
+
+app.post('/create-sticker', 
+    multerParse.fields([{name : 'stickerFile'}]), async (req, res) => {
+        try {
+            const stickerFile = req.files?.stickerFile?.[0]
+            if (!stickerFile) {
+                return res.status(400).json({ error: 'Missing sticker file' });
+            } 
+            const {name} = req.body;
+            console.log('Sticker Metadata:', {name});
+            if (!name) {
+                return res.status(400).json({ error: 'Missing sticker metadata' });
+            }
+            const sticker_url = await uploadFile(stickerFile);
+    
+            const newSticker = await createSticker(
+                name, 
+                sticker_url
+            );
+            console.log("New Sticker Created:", newSticker);
+            if (!newSticker) {
+                return res.status(500).json({ error: 'Failed to create sticker' });
+            }
+            return res.status(201).json({ 
+                message: 'Sticker created successfully', 
+                data: newSticker 
+            });
+        } catch (error) {
+            console.error("Upload Error:", error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+});
+
+app.delete('/delete-sticker/:id', async (req, res) => {
+    const { id } = req.params;
+    const deletedSticker = await deleteSticker(id);
+    if (!deletedSticker) {
+        return res.status(404).json({ error: 'Sticker not found' });
+    }
+    return res.status(200).json({ 
+        message: 'Sticker deleted successfully', 
+        data: deletedSticker 
+    });
+});
+
+
+// End of Sticker Endpoints
