@@ -455,15 +455,16 @@ app.post('/create-template',
             if (!template || !guide) {
                 return res.status(400).json({ error: 'Missing template or guide file' });
             }
-            const {template_theme, template_photos, name} = req.body;
+            const {template_type,template_theme, template_photos, name} = req.body;
             console.log('Template Metadata:', {template_theme, template_photos, name});
-            if (!template_theme || !template_photos || !name) {
+            if (!template_type || !template_theme || !template_photos || !name) {
                 return res.status(400).json({ error: 'Missing template metadata' });
             }
             const template_url = await uploadFile(template);
             const guide_template_url = await uploadFile(guide);
     
             const newTemplate = await createTemplate(
+                template_type,
                 template_theme, 
                 template_photos,
                 guide_template_url,

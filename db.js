@@ -44,6 +44,7 @@ const createTemplatesTable = async () => {
     CREATE TABLE IF NOT EXISTS templates (
         id SERIAL PRIMARY KEY,
         name TEXT,
+        template_type TEXT, 
         template_theme TEXT, 
         template_photos INTEGER, 
         guide_template_url TEXT,

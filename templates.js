@@ -2,7 +2,7 @@ import { db } from './db.js';
 
 
 export const getAllTemplates = async () => {
-  const res = await db.query('SELECT * FROM templates ORDER BY created_at DESC');
+  const res = await db.query('SELECT * FROM templates ORDER BY created_at ASC');
   return res.rows;
 }
 
@@ -13,9 +13,9 @@ export const getTemplateById = async (id) => {
 
 export const createTemplate = async (template_theme, template_photos, guide_template_url, template_url, name) => {
   const res = await db.query(
-    `INSERT INTO templates (template_theme, template_photos, guide_template_url, template_url, name)
-        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [template_theme, template_photos, guide_template_url, template_url, name]
+    `INSERT INTO templates (template_type, template_theme, template_photos, guide_template_url, template_url, name)
+        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [template_type, template_theme, template_photos, guide_template_url, template_url, name]
   );
   if (!res.rows[0]) {
     throw new Error('Failed to create template');
