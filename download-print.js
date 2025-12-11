@@ -31,14 +31,13 @@ export const downloadFile = async (file) => {
     await new Promise((r) => setTimeout(r, 500)); 
     
     // const printers = await getPrinters();
-    // const defaultPrinter = await getDefaultPrinter();
-
-    // console.log("Available printers:", printers);
-    // console.log("Default printer:", defaultPrinter);
+    // const printerToUse = printers.find(p => p.name === 'DS-RX1') ? 'DS-RX1' : defaultPrinter;
+    
+    // console.log('Printers Used:', printerToUse);
 
     console.log("Sending to printer...");
     await print(tempPDF, { 
-      printer: defaultPrinter,
+      printer: 'DS-RX1',
       paperSize: 'PR (4x6)'  // Atur ukuran kertas sesuai kebutuhan
     }
     );
@@ -53,8 +52,8 @@ export const downloadFile = async (file) => {
     // 5. Cleanup (Akan SELALU dijalankan, baik sukses maupun error)
     // Menghapus file temporary agar server tidak penuh
     try {
-      if (fs.existsSync(tempImage)) fs.unlinkSync(tempImage);
-      if (fs.existsSync(tempPDF)) fs.unlinkSync(tempPDF);
+      // if (fs.existsSync(tempImage)) fs.unlinkSync(tempImage);
+      // if (fs.existsSync(tempPDF)) fs.unlinkSync(tempPDF);
     } catch (cleanupError) {
       console.error("Error cleaning up temp files:", cleanupError);
     }
@@ -73,10 +72,9 @@ const convertImageToPDF = async (imagePath, pdfPath) => {
     
     // Tambah halaman sesuai ukuran (misal Letter atau 4R tergantung printer)
     // 612 x 792 adalah ukuran Letter standar points
-    doc.addPage({ size: [612, 792] }); 
-    
+    doc.addPage({ size: [432, 288]});
     // Masukkan gambar, fit agar pas di kertas
-    doc.image(imagePath, 0, 0, { fit: [612, 792], align: 'center', valign: 'center' });
+    doc.image(imagePath, 0, 0, { fit: [432, 288], align: 'center', valign: 'center', });
     
     doc.end();
   });

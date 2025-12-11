@@ -4,6 +4,7 @@ import express from 'express'
 import { uploadFile,uploadMultipleFiles } from './file-upload-util.js'
 import { downloadFile } from './download-print.js'
 import { sendPhotoEmail } from './send-email.js'
+import { getAllTemplates, getTemplateById,createTemplate, deleteTemplate } from './templates.js';
 import { db } from './db.js';
 import cors from 'cors';
 
@@ -22,8 +23,8 @@ const multerParse = multer({
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
-app.post('/upload',
-    multerParse.array('attachment'),
+app.post('/upload', 
+    multerParse.array('attachment'), 
     async (req, res) => {
         const attachments = req.files;
         const {order_id}  = req.body;
@@ -106,8 +107,7 @@ app.post('/upload-photos-final/:order_id',multerParse.fields([{
         if (!attachment) {
             return res.status(400).json({ error: 'No attachment uploaded' });
         }
-        const UploadResponse = await uploadFile(attachment)
-
+        const UploadResponse = await uploadFile(attachment)        
         if (UploadResponse) {
             await db.query(
                 'UPDATE orders SET final_photo = $1 WHERE id = $2 RETURNING *',
@@ -123,6 +123,78 @@ app.get('/', (req, res) => res.send('Hello World!'))
 app.post('/',async (req, res) => {
     console.log('JOSS');
     res.send('Hello from POST!')})
+    
+app.get('/template-all', async (req, res) => {
+    const templates =  await getAllTemplates();
+    return  res.status(200).json({
+        message: 'All Templates fetched',
+        data: templates
+    });
+});
+
+app.get('/template/:id', async (req, res) => {
+    const { id } = req.params;
+    const template = await getTemplateById(id);
+    if (!template) {
+        return res.status(404).json({ error: 'Template not found' });
+    }
+    return res.status(200).json({
+        message: 'Template fetched',
+        data: template
+    });
+});
+
+app.post('/create-template', 
+    multerParse.fields([
+        {name: 'template', maxCount: 1},
+        {name: 'guide', maxCount: 1}]), 
+    async (req, res) => {
+        try {
+            const template = req.files?.template?.[0];
+            const guide = req.files?.guide?.[0];
+            if (!template || !guide) {
+                return res.status(400).json({ error: 'Missing template or guide file' });
+            }
+            const {template_theme, template_photos, name} = req.body;
+            if (!template_theme || !template_photos || !name) {
+                return res.status(400).json({ error: 'Missing template metadata' });
+            }
+            const template_url = await uploadFile(template);
+            const guide_template_url = await uploadFile(guide);
+    
+            const newTemplate = await createTemplate(
+                template_theme, 
+                template_photos,
+                guide_template_url,
+                template_url,
+                name
+            );
+            console.log("New Template Created:", newTemplate);
+            if (!newTemplate) {
+                return res.status(500).json({ error: 'Failed to create template' });
+            }
+            return res.status(201).json({ 
+                message: 'Template created successfully', 
+                data: newTemplate 
+            });
+        } catch (error) {
+            console.error("Upload Error:", error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+});
+
+app.delete('/delete-template/:id', async (req, res) => {
+    const { id } = req.params;
+    const deletedTemplate = await deleteTemplate(id);
+    if (!deletedTemplate) {
+        return res.status(404).json({ error: 'Template not found' });
+    }
+    return res.status(200).json({ 
+        message: 'Template deleted successfully', 
+        data: deletedTemplate 
+    });
+});
+
 
 app.post('/email/:order_id', async (req, res) => { 
     const { order_id } = req.params;

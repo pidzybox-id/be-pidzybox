@@ -43,10 +43,22 @@ const createTemplatesTable = async () => {
   const createTemplatesTableQuery = `
     CREATE TABLE IF NOT EXISTS templates (
         id SERIAL PRIMARY KEY,
-        template_type TEXT, 
+        name TEXT,
+        template_theme TEXT, 
         template_photos INTEGER, 
         guide_template_url TEXT,
         template_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `
+  await db.query(createTemplatesTableQuery);
+}
+const createStickerTable = async () => {
+  const createTemplatesTableQuery = `
+    CREATE TABLE IF NOT EXISTS stickers (
+        id SERIAL PRIMARY KEY,
+        name TEXT, 
+        sticker_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `
@@ -58,6 +70,7 @@ const createTemplatesTable = async () => {
 //     await createPhotosTables();
 //     await createOrdersTable();
 //     await createTemplatesTable();
+//     await createStickerTable();
 //     console.log("All tables created successfully");
 //   } catch (err) {
 //     console.error("Error creating tables:", err);
