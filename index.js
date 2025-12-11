@@ -156,6 +156,7 @@ app.post('/create-template',
                 return res.status(400).json({ error: 'Missing template or guide file' });
             }
             const {template_theme, template_photos, name} = req.body;
+            console.log('Template Metadata:', {template_theme, template_photos, name});
             if (!template_theme || !template_photos || !name) {
                 return res.status(400).json({ error: 'Missing template metadata' });
             }

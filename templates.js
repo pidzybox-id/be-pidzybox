@@ -14,7 +14,7 @@ export const getTemplateById = async (id) => {
 export const createTemplate = async (template_theme, template_photos, guide_template_url, template_url, name) => {
   const res = await db.query(
     `INSERT INTO templates (template_theme, template_photos, guide_template_url, template_url, name)
-        VALUES ($1, $2, $3, $4) RETURNING *`,
+        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
     [template_theme, template_photos, guide_template_url, template_url, name]
   );
   if (!res.rows[0]) {
